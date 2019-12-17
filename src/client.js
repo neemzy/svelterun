@@ -1,13 +1,12 @@
 const baseURL = "https://www.speedrun.com/api/v1";
-const pageSize = 20;
 
 async function get(endpoint) {
   return (await (await fetch(baseURL + endpoint)).json()).data;
 }
 
 export default {
-  getGames(page) {
-    return get(`/games${page ? `?offset=${(page - 1) * pageSize}` : ""}`);
+  getGames(query) {
+    return get(`/games?_bulk=yes&max=1000&name=${query}`);
   },
 
   async getCategories(gameID) {

@@ -1,17 +1,23 @@
-{#each games as game}
-  <button class:button-outline="{selectedGameID === game.id}" on:click={() => selectGame(game.id)}>{game.names.international}</button>
-  &nbsp;
-{/each}
+<DebouncedInput minLength={3} delay={300} placeholder="Search for games..." on:input={event => search(event.detail.value)} />
 
-<button class="button-black" on:click={() => loadMoreGames()}>Load more...</button>
-
-{#if categoriesLoaded}
-  <hr />
-
-  {#each selectedGame.categories as category}
-    <button class:button-outline="{selectedCategoryID === category.id}" on:click={() => selectCategory(category.id)}>{category.name}</button>
+{#if loading}
+  <div class="spinner"></div>
+{:else if noResults}
+  <div class="center">Woops, no results were found! Check your query.</div>
+{:else}
+  {#each games as game}
+    <button class:button-outline="{selectedGameID === game.id}" on:click={() => selectGame(game.id)}>{game.names.international}</button>
     &nbsp;
   {/each}
+
+  {#if categoriesLoaded}
+    <hr />
+
+    {#each selectedGame.categories as category}
+      <button class:button-outline="{selectedCategoryID === category.id}" on:click={() => selectCategory(category.id)}>{category.name}</button>
+      &nbsp;
+    {/each}
+  {/if}
 
   {#if leaderboardLoaded}
     <table>
@@ -41,16 +47,18 @@
 
 <script>
 import "milligram/dist/milligram.min.css";
-import { onMount } from "svelte";
 import formatDuration from "format-duration";
 import ago from "s-ago";
+import DebouncedInput from "./DebouncedInput.svelte";
 import client from "./client";
 
+let query = "";
 let games = [];
-let page = 1;
 let selectedGameID = null;
 let selectedCategoryID = null;
+let loading = false;
 
+$: noResults = query.length > 0 && games.length === 0;
 $: selectedGame = games.find(({ id }) => id === selectedGameID);
 $: categoriesLoaded = selectedGame && "categories" in selectedGame;
 $: selectedCategory = categoriesLoaded ? selectedGame.categories.find(({ id }) => id === selectedCategoryID) : undefined;
@@ -68,8 +76,13 @@ $: if (selectedCategory && !("leaderboard" in selectedCategory)) {
   });
 }
 
-async function loadMoreGames() {
-  games = [...games, ...await client.getGames(++page)];
+async function search(value) {
+  query = value;
+  selectedGameID = null;
+  selectedCategoryID = null;
+  loading = true;
+  games = await client.getGames(query);
+  loading = false;
 }
 
 function selectGame(id) {
@@ -95,10 +108,6 @@ function formatPlace(place) {
 
   return place;
 }
-
-onMount(async () => {
-  games = await client.getGames();
-});
 </script>
 
 <style>
@@ -110,8 +119,42 @@ onMount(async () => {
   text-align: right;
 }
 
-.button-black {
-  background-color: black;
-  border-color: black;
+.spinner {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  margin: 0 auto;
+}
+
+.spinner::before,
+.spinner::after {
+  content: "";
+  position: absolute;
+  border: 4px solid #333333;
+  opacity: 1;
+  border-radius: 50%;
+  animation: ripple 1s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+}
+
+.spinner::after {
+  animation-delay: -0.5s;
+}
+
+@keyframes ripple {
+  0% {
+    top: 36px;
+    left: 36px;
+    width: 0;
+    height: 0;
+    opacity: 1;
+  }
+
+  100% {
+    top: 0px;
+    left: 0px;
+    width: 72px;
+    height: 72px;
+    opacity: 0;
+  }
 }
 </style>
